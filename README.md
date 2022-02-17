@@ -2,19 +2,21 @@
 
 ## Intro
 
-The main goal of the code herein contained is to facilitate the semantic segmentation of
-Sentinel-2 satelite imagery.
+The main goal of this project is to facilitate the semantic segmentation
+of Sentinel-2 satelite imagery.
 
 ## Architecture
 
-We use the U-Net for the semantic segmentation, which is backed by the VGG network.
+We use the U-Net architecture, backed by the VGG architecture.
 
 ## Running the code
 
 1. Clone the code
-2. Ensure you have the `/data` folder populated with master `image.npy` and `mask.npy` files
-3. Install necessary dependencies by running `pip install -r requrements.txt` (or by Conda)
-4. Run the `python train.py` to start the training of the U-Net network
+2. Ensure you have the `/data` folder populated with master `image.npy` and `mask.npy`
+   (this should be the case if you cloned the repo)
+3. Create a `venv` by `python3 -m venv venv` and activate it by `source venv/bin/activate`
+4. Install necessary dependencies by running `pip install -r requrements.txt`
+5. Run the `python train.py` to start the training of the U-Net network
 
 ## Further work
 
