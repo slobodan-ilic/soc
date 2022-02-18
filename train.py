@@ -13,14 +13,30 @@ sm.set_framework("tf.keras")
 def create_and_train_unet_model(path, input_shape, n_classes, batch_size, epochs):
     """Create U-Net keras model in tensorflow based on the input parameters."""
     # ---Create base U-Net model without weight initialization---
-    unet = sm.Unet(
+    pretrained_shape = input_shape[:2] + (3,)
+    unet_rgb = sm.Unet(
+        "vgg16",
+        classes=n_classes,
+        input_shape=pretrained_shape,
+        activation="softmax",
+        encoder_weights="imagenet",
+    )
+    unet_ms = sm.Unet(
         "vgg16",
         classes=n_classes,
         input_shape=input_shape,
         activation="softmax",
         encoder_weights=None,
     )
-    unet.compile(loss="categorical_crossentropy", optimizer="adam")
+    # ---Replace first layer of the pretrained network to match MS with 13 channels---
+    # for i in range(len(unet_rgb.layers)):
+    for i in range(3, 20):
+        unet_ms.layers[i].set_weights(unet_rgb.layers[i].get_weights())
+    unet_ms.compile(
+        loss="categorical_crossentropy",
+        optimizer="adam",
+        metrics=["categorical_accuracy"],
+    )
 
     # ---Load Sentinel-2 data with masks, to training and validation datasets---
     loader = SentinelUnetLoader(path)
@@ -30,7 +46,7 @@ def create_and_train_unet_model(path, input_shape, n_classes, batch_size, epochs
 
     # ---Prepare various callbacks---
     callbacks = [
-        ModelCheckpoint("unet-sentinel-0.0.h5", verbose=1, save_best_model=True),
+        ModelCheckpoint("unet-ms-sentinel-0.0.h5", verbose=1, save_best_model=True),
         ReduceLROnPlateau(monitor="val_loss", patience=3, factor=0.1, verbose=1),
         EarlyStopping(monitor="val_loss", patience=5, verbose=1),
     ]
@@ -38,7 +54,12 @@ def create_and_train_unet_model(path, input_shape, n_classes, batch_size, epochs
     # ---Train the model
     train_steps = len(training_indices) // batch_size
     valid_steps = len(validation_indices) // batch_size
-    unet.fit(
+    for i in range(3, 20):
+        unet_ms.layers[i].trainable = False
+    for i in range(3):
+        unet_ms.layers[i].trainable = True
+
+    unet_ms.fit(
         train_dataset,
         steps_per_epoch=train_steps,
         validation_data=validation_dataset,
@@ -46,7 +67,16 @@ def create_and_train_unet_model(path, input_shape, n_classes, batch_size, epochs
         epochs=epochs,
         callbacks=callbacks,
     )
-    return unet
+    for i in range(len(unet_rgb.layers)):
+        unet_ms.layers[i].trainable = True
+    unet_ms.fit(
+        train_dataset,
+        steps_per_epoch=train_steps,
+        validation_data=validation_dataset,
+        validation_steps=valid_steps,
+        epochs=epochs,
+        callbacks=callbacks,
+    )
 
 
 if __name__ == "__main__":
@@ -54,4 +84,4 @@ if __name__ == "__main__":
     unet = create_and_train_unet_model(
         path, input_shape=(64, 64, 13), n_classes=10, batch_size=8, epochs=2
     )
-    print(unet.summary())
+    # print(unet.summary())
