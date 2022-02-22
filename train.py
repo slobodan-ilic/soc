@@ -82,6 +82,6 @@ def create_and_train_unet_model(path, input_shape, n_classes, batch_size, epochs
 if __name__ == "__main__":
     path = "./sentinel-data/"
     unet = create_and_train_unet_model(
-        path, input_shape=(64, 64, 13), n_classes=10, batch_size=8, epochs=2
+        path, input_shape=(64, 64, 13), n_classes=10, batch_size=8, epochs=20
     )
     # print(unet.summary())

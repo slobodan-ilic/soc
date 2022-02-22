@@ -10,18 +10,57 @@ from sklearn.model_selection import train_test_split
 from tensorflow.keras.utils import to_categorical
 
 
+def preprocess_ms_image(x):
+    # define mean and std values
+    mean = [
+        1353.036,
+        1116.468,
+        1041.475,
+        945.344,
+        1198.498,
+        2004.878,
+        2376.699,
+        2303.738,
+        732.957,
+        12.092,
+        1818.820,
+        1116.271,
+        2602.579,
+    ]
+    std = [
+        65.479,
+        154.008,
+        187.997,
+        278.508,
+        228.122,
+        356.598,
+        456.035,
+        531.570,
+        98.947,
+        1.188,
+        378.993,
+        303.851,
+        503.181,
+    ]
+    # loop over image channels
+    for idx, mean_value in enumerate(mean):
+        x[..., idx] -= mean_value
+        x[..., idx] /= std[idx]
+    return x
+
+
 class SentinelUnetLoader:
     """Implementation for the U-Net related functionality for Sentinel segmentation."""
 
     master_size = 1500  # Size of master image and mask in pixels per side
-    limit_size = 500  # Set to master size for training on all data
+    limit_size = 1500  # Set to master size for training on all data
     patch_size = 64  # Size of patch used for network training and prediction in pps
-    step = 30  # Determines overlap between patches (1 - max overlap, 64 - no overlap)
+    skip = 64  # Determines overlap between patches (1 - max overlap, 64 - no overlap)
 
     def __init__(self, path):
         self._path = path
         n = self.limit_size
-        self._master_image = self._preprocess_ms_image(
+        self._master_image = preprocess_ms_image(
             np.load(path + "image.npy").astype("float32")[:n, :n, :]
         )
         self._master_mask = to_categorical(
@@ -54,12 +93,20 @@ class SentinelUnetLoader:
         minus the dimension of a patch). The total number of possible patches is the
         product of the number of possible patches along each dimension.
         """
-        n, step = self.limit_size - self.patch_size, self.step
-        one_dim_inds = list(range(0, n, step))
-        unrav = list(zip(*[el for el in itertools.product(one_dim_inds, one_dim_inds)]))
-        all_patch_indices = np.ravel_multi_index(unrav, (n, n))
+        n, skip = self.limit_size - self.patch_size, self.skip
+        one_dim_inds = list(range(0, n, skip))
+        n_rotate = [0, 1, 2, 3]  # N of 90 degree rotations
+        flip_codes = [
+            0,  # don't flip
+            1,  # flip 1st axis
+            2,  # flip 2nd axis
+            3,  # flip both axes
+        ]  # Codes for flip axes
+        all_patch_inds = list(
+            itertools.product(one_dim_inds, one_dim_inds, n_rotate, flip_codes)
+        )
 
-        trn, tst = train_test_split(all_patch_indices, test_size=0.3, random_state=42)
+        trn, tst = train_test_split(all_patch_inds, test_size=0.3, random_state=42)
         trn, vld = train_test_split(trn, test_size=0.2, random_state=42)
 
         return trn, vld, tst
@@ -71,53 +118,21 @@ class SentinelUnetLoader:
 
         def f(ind):
             n = self.patch_size
-            stride = self.limit_size - n  # How many patches can be create from stripe
-            i, j = np.unravel_index(ind, (stride, stride))
+            # stride = self.limit_size - n  # How many patches can be create from stripe
+            # i, j = np.unravel_index(ind, (stride, stride))
+            i, j, rotate, flip = ind
             img = self._master_image[i : i + n, j : j + n, :]
             msk = self._master_mask[i : i + n, j : j + n, :]
+            if flip:
+                axes = {1: 0, 2: 1, 3: (0, 1)}[flip]  # flip code -> axes
+                img = np.flip(img, axes)
+                msk = np.flip(msk, axes)
+            img = np.rot90(self._master_image[i : i + n, j : j + n, :], rotate, (0, 1))
+            msk = np.rot90(self._master_mask[i : i + n, j : j + n, :], rotate, (0, 1))
             return img, msk
 
         img, msk = tf.numpy_function(f, [ind], [tf.float32, tf.float32])
         return img, msk
-
-    @staticmethod
-    def _preprocess_ms_image(x):
-        # define mean and std values
-        mean = [
-            1353.036,
-            1116.468,
-            1041.475,
-            945.344,
-            1198.498,
-            2004.878,
-            2376.699,
-            2303.738,
-            732.957,
-            12.092,
-            1818.820,
-            1116.271,
-            2602.579,
-        ]
-        std = [
-            65.479,
-            154.008,
-            187.997,
-            278.508,
-            228.122,
-            356.598,
-            456.035,
-            531.570,
-            98.947,
-            1.188,
-            378.993,
-            303.851,
-            503.181,
-        ]
-        # loop over image channels
-        for idx, mean_value in enumerate(mean):
-            x[..., idx] -= mean_value
-            x[..., idx] /= std[idx]
-        return x
 
 
 if __name__ == "__main__":
