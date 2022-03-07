@@ -3,11 +3,14 @@
 """Home of the module for loading Sentinel-2 images and ground-truth masks."""
 
 import itertools
+from random import sample
 
 import numpy as np
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.utils import to_categorical
+
+tf.compat.v1.enable_eager_execution()
 
 
 def preprocess_ms_image(x):
@@ -83,6 +86,21 @@ class SentinelUnetLoader:
         ds = ds.prefetch(2)
         return ds
 
+    def img_gen(self, inds, batch_size=8):
+        """return generator of training images, based on initial indexes."""
+        batch_inds = sample(inds, batch_size)
+        while True:
+            batch_patches = []
+            batch_masks = []
+            for i, index in enumerate(batch_inds):
+                img, msk = self._preprocess_index(index)
+                batch_patches += [img]
+                batch_masks += [msk]
+                # yield self._preprocess_index(inds)
+            X = np.array(batch_patches)
+            Y = np.array(batch_masks)
+            yield X, Y
+
     @property
     def split_patch_indices(self) -> tuple:
         """generate training, validation and test splits based on patch indices.
@@ -116,22 +134,24 @@ class SentinelUnetLoader:
     def _preprocess_sentinel(self, ind) -> tuple:
         """return tuple with data for the HS image and the respective mask."""
 
-        def f(ind):
-            n = self.patch_size
-            # stride = self.limit_size - n  # How many patches can be create from stripe
-            # i, j = np.unravel_index(ind, (stride, stride))
-            i, j, rotate, flip = ind
-            img = self._master_image[i : i + n, j : j + n, :]
-            msk = self._master_mask[i : i + n, j : j + n, :]
-            if flip:
-                axes = {1: 0, 2: 1, 3: (0, 1)}[flip]  # flip code -> axes
-                img = np.flip(img, axes)
-                msk = np.flip(msk, axes)
-            img = np.rot90(self._master_image[i : i + n, j : j + n, :], rotate, (0, 1))
-            msk = np.rot90(self._master_mask[i : i + n, j : j + n, :], rotate, (0, 1))
-            return img, msk
+        img, msk = tf.numpy_function(
+            self._preprocess_index, [ind], [tf.float32, tf.float32]
+        )
+        return img, msk
 
-        img, msk = tf.numpy_function(f, [ind], [tf.float32, tf.float32])
+    def _preprocess_index(self, ind):
+        n = self.patch_size
+        # stride = self.limit_size - n  # How many patches can be create from stripe
+        # i, j = np.unravel_index(ind, (stride, stride))
+        i, j, rotate, flip = ind
+        img = self._master_image[i : i + n, j : j + n, :]
+        msk = self._master_mask[i : i + n, j : j + n, :]
+        if flip:
+            axes = {1: 0, 2: 1, 3: (0, 1)}[flip]  # flip code -> axes
+            img = np.flip(img, axes)
+            msk = np.flip(msk, axes)
+        img = np.rot90(self._master_image[i : i + n, j : j + n, :], rotate, (0, 1))
+        msk = np.rot90(self._master_mask[i : i + n, j : j + n, :], rotate, (0, 1))
         return img, msk
 
 
@@ -139,6 +159,14 @@ if __name__ == "__main__":
     path = "./sentinel-data/"
     loader = SentinelUnetLoader(path)
     trn, vld, tst = loader.split_patch_indices
-    print(f"DS: Train: {len(trn)} - Valid: {len(vld)} - Test: {len(tst)}")
-    for (img, msk), i in zip(loader.dataset(trn), range(3)):
-        print(img.shape, msk.shape)
+    for el in loader.img_gen(trn):
+        print(el)
+
+    # loader = SentinelUnetLoader(path)
+    # trn, vld, tst = loader.split_patch_indices
+    # print(f"DS: Train: {len(trn)} - Valid: {len(vld)} - Test: {len(tst)}")
+    # ds = loader.dataset(trn)
+    # type(ds)
+    # __import__("ipdb").set_trace()
+    # for (img, msk), i in zip(loader.dataset(trn), range(20)):
+    #     print(img.shape, msk.shape)
