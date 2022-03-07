@@ -10,8 +10,6 @@ import tensorflow as tf
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.utils import to_categorical
 
-tf.compat.v1.enable_eager_execution()
-
 
 def preprocess_ms_image(x):
     # define mean and std values

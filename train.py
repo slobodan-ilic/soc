@@ -41,10 +41,8 @@ def create_and_train_unet_model(path, input_shape, n_classes, batch_size, epochs
     # ---Load Sentinel-2 data with masks, to training and validation datasets---
     loader = SentinelUnetLoader(path)
     training_indices, validation_indices, test_indices = loader.split_patch_indices
-    # train_dataset = loader.dataset(training_indices)
-    train_dataset = loader.img_gen(training_indices)
-    # validation_dataset = loader.dataset(validation_indices)
-    validation_dataset = loader.img_gen(validation_indices)
+    train_gen = loader.img_gen(training_indices)
+    validation_gen = loader.img_gen(validation_indices)
 
     # ---Prepare various callbacks---
     callbacks = [
@@ -62,9 +60,9 @@ def create_and_train_unet_model(path, input_shape, n_classes, batch_size, epochs
         unet_ms.layers[i].trainable = True
 
     unet_ms.fit(
-        train_dataset,
+        train_gen,
         steps_per_epoch=train_steps,
-        validation_data=validation_dataset,
+        validation_data=validation_gen,
         validation_steps=valid_steps,
         epochs=epochs,
         callbacks=callbacks,
@@ -72,9 +70,9 @@ def create_and_train_unet_model(path, input_shape, n_classes, batch_size, epochs
     for i in range(len(unet_rgb.layers)):
         unet_ms.layers[i].trainable = True
     unet_ms.fit(
-        train_dataset,
+        train_gen,
         steps_per_epoch=train_steps,
-        validation_data=validation_dataset,
+        validation_data=validation_gen,
         validation_steps=valid_steps,
         epochs=epochs,
         callbacks=callbacks,
