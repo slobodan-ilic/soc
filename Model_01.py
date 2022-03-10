@@ -42,7 +42,7 @@ def build_vgg16_unet(input_shape, num_classes):
     d4 = decoder_block(d3, s1, 64)                      ## (512 x 512)
 
     """ Output """
-    outputs = Conv2D(num_classes, 1, padding="same", activation="sigmoid")(d4) ########## ovde verovatno treba da zamenimo prvu 1 sa num_classes=10 u našem slučaju...što sam i uradio...
+    outputs = Conv2D(num_classes, 1, padding="same", activation="sigmoid")(d4)
 
     model = Model(inputs, outputs, name="VGG16_U-Net")
     return model
