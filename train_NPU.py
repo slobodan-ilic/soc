@@ -9,7 +9,7 @@ from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLRO
 
 from data import SentinelUnetLoader
 
-from Model_01 import build_vgg16_unet
+from model_01 import build_vgg16_unet
 
 from helpers import NpuHelperForTF
 
