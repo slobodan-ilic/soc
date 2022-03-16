@@ -42,13 +42,13 @@ def build_vgg16_unet(input_shape, num_classes):
     d4 = decoder_block(d3, s1, 64)                      ## (512 x 512)
 
     """ Output """
-    outputs = Conv2D(num_classes, 1, padding="same", activation="sigmoid")(d4)
+    outputs = Conv2D(num_classes, 1, padding="same", activation="softmax")(d4)
 
     model = Model(inputs, outputs, name="VGG16_U-Net")
     return model
 
 if __name__ == "__main__":
-    input_shape = (64, 64, 13)
-    number_of_classes=10
-    model = build_vgg16_unet(input_shape, number_of_classes)
+    input_shape = (512, 512, 10)
+    num_classes=10
+    model = build_vgg16_unet(input_shape, num_classes)
     model.summary()
