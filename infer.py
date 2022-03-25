@@ -7,6 +7,7 @@ import numpy as np
 from tensorflow.keras.models import load_model
 
 from data import preprocess_ms_image
+from helpers import SentinelHelper
 
 
 class Infererer:
@@ -17,46 +18,54 @@ class Infererer:
         input_ = np.array([preprocess_ms_image(img.astype("float32"))])
         return self._unet.predict(input_)[0]
 
-    def save(self, img, classes):
-        # ---Save True-Color image
-        tci = np.array(img[:, :, 1:4] * 3.5 / 1e4 * 255, dtype="uint8")
-        cv2.imwrite("tci.png", tci)
 
-        # ---Save the mask
-        categories = np.argmax(classes, axis=2)
-        msk = self._create_mask(categories)
-        cv2.imwrite("msk.png", msk)
+def create_mask(classes) -> np.array:
+    """Create color mask in RGB based on mask classes."""
+    codes = {
+        0: (147, 221, 187),  # ---- Annual Crop
+        1: (62, 157, 87),  # ------ Forest
+        2: (44, 93, 51),  # ------- Herbaceous Vegetation
+        3: (148, 150, 151),  # ---- Highway
+        4: (156, 159, 235),  # ---- Industrial
+        5: (124, 192, 241),  # ---- Pasture
+        6: (79, 235, 247),  # ----- Permanent Crop
+        7: (44, 52, 208),  # ------ Residential
+        8: (175, 120, 60),  # ----- River
+        9: (224, 205, 173),  # ---- SeaLake
+    }
+    mask = np.full(classes.shape + (3,), (0, 0, 0), np.uint8)
+    for class_ in codes:
+        mask[classes == class_] = codes[class_]
+    return mask
 
-    def _create_mask(self, labels) -> np.array:
-        codes = {
-            0: (255, 255, 255),  # ------------ "No Data", "#ffffff"
-            1: (255, 255, 0),  # -------------- "Cultivated Land", "#ffff00"
-            2: (5, 73, 7),  # ----------------- "Forest", "#054907"
-            3: (255, 165, 0),  # -------------- "Grassland", "#ffa500"
-            4: (128, 96, 0),  # --------------- "Shrubland", "#806000"
-            5: (6, 154, 243),  # -------------- "Water", "#069af3"
-            6: (149, 208, 252),  # ------------ "Wetlands", "#95d0fc"
-            7: (150, 123, 182),  # ------------ "Tundra", "#967bb6"
-            8: (220, 20, 60),  # -------------- "Artificial Surface", "#dc143c"
-            9: (166, 166, 166),  # ------------ "Bareland", "#a6a6a6"
-            10: (0, 0, 0),  # ----------------- "Snow and Ice", "#000000"
-        }
-        mask = np.full((64, 64, 3), (0, 0, 0), np.uint8)
-        for lbl in codes:
-            mask[labels == lbl] = codes[lbl][::-1]
-        return mask
+
+def infer_lulc(image):
+    """Infer LULC and save image as 'fused.png' in the local directory."""
+    inferer = Infererer("unet-ms-sentinel-0.0.h5")
+
+    h, w, _ = image.shape
+    m = h // 64
+    n = w // 64
+
+    row_patches = []
+    for i in range(m):
+        col_patches = []
+        for j in range(n):
+            img_patch = image[i * 64 : (i + 1) * 64, j * 64 : (j + 1) * 64, :]
+            pred = inferer.infer(img_patch)
+            classes = np.argmax(pred, axis=2)
+            col_patches.append(classes)
+        row_patch = np.hstack(col_patches)
+        row_patches.append(row_patch)
+
+    mask = create_mask(np.vstack(row_patches))
+    img = image[0 : m * 64, 0 : n * 64, :]
+    tc_image = np.array(img[:, :, 1:4] * 3.5 / 1e4 * 255, dtype="uint8")
+    fused = cv2.addWeighted(tc_image, 0.6, mask, 0.4, 0)
+    cv2.imwrite("fused.png", fused)
 
 
 if __name__ == "__main__":
-    img_path = "./ns.npy"  # Saved image that you get from Sentinel
-    master_img = np.load(img_path)
-
-    # ---Position of the patch in the (larger) image from Sentinel---
-    i = 0
-    j = 0
-    img = master_img[i : i + 64, j : j + 64, :]
-
-    # ---Perform prediction for the given patch---
-    inferer = Infererer("unet-ms-sentinel-0.0.h5")
-    classes = inferer.infer(img)
-    inferer.save(img, classes)
+    bbox = [19.820823, 45.268260, 19.847773, 45.284206]
+    sh = SentinelHelper(bbox, 3, 2021)
+    infer_lulc(sh.image())
