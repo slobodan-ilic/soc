@@ -2,6 +2,12 @@ import os
 from tensorflow.core.protobuf.rewriter_config_pb2 import RewriterConfig
 
 import tensorflow as tf
+import tensorflow.python.keras as keras
+from npu_bridge.estimator import npu_ops
+from npu_bridge.estimator.npu.npu_optimizer import NPUDistributedOptimizer
+from npu_bridge.npu_init import *
+from tensorflow.core.protobuf.rewriter_config_pb2 import RewriterConfig
+from tensorflow.keras.models import load_model
 from tensorflow.python.keras import backend as K
 
 import numpy as np
