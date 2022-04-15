@@ -30,6 +30,28 @@ def create_and_train_unet_model(path, input_shape, n_classes, batch_size, epochs
     print("________________________ INIT NPU SESSION ________________________")
     sess = NpuHelperForTF(**npu_config).sess()
 
+    # names = [
+    #     "block1_conv2",
+    #     "block1_pool",
+    #     "block2_conv1",
+    #     "block2_conv2",
+    #     "block2_pool",
+    #     "block3_conv1",
+    #     "block3_conv2",
+    #     "block3_conv3",
+    #     "block3_pool",
+    #     "block4_conv1",
+    #     "block4_conv2",
+    #     "block4_conv3",
+    #     "block4_pool",
+    #     "block5_conv1",
+    #     "block5_conv2",
+    #     "block5_conv3",
+    # ]
+    # for name in names:
+    #     layer = unet_APU2.get_layer(name)
+    #     layer.trainable = False
+
     print("--------------------- compiling")
     unet_APU2.compile(
         loss="categorical_crossentropy",
@@ -37,6 +59,8 @@ def create_and_train_unet_model(path, input_shape, n_classes, batch_size, epochs
         metrics=["categorical_accuracy"],
     )
 
+
+    # breakpoint()
     # ---Load Sentinel-2 data with masks, to training and validation datasets---
     print("--------------------- loading")
     loader = SentinelUnetLoader(path)

@@ -1,5 +1,8 @@
 import os
-from tensorflow.core.protobuf.rewriter_config_pb2 import RewriterConfig
+
+# from npu_bridge.estimator.npu.npu_optimizer import NPUDistributedOptimizer
+# from npu_bridge.npu_init import *
+from tensorflow.keras.models import load_model
 
 import tensorflow as tf
 import tensorflow.python.keras as keras
@@ -175,8 +178,8 @@ class NpuHelperForTF:
         custom_op = sess_config.graph_options.rewrite_options.custom_optimizers.add()
         custom_op.name = "NpuOptimizer"
         custom_op.parameter_map["use_off_line"].b = True
-        custom_op.parameter_map["precision_mode"].s = tf.compat.as_bytes("force_fp16")
-        custom_op.parameter_map["graph_run_mode"].i = 0
+        # custom_op.parameter_map["precision_mode"].s = tf.compat.as_bytes("allow_mix_precision")
+        custom_op.parameter_map["graph_run_mode"].i = 1
         sess_config.graph_options.rewrite_options.remapping = RewriterConfig.OFF
         sess_config.graph_options.rewrite_options.memory_optimization = (
             RewriterConfig.OFF

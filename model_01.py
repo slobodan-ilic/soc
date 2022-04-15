@@ -8,6 +8,7 @@ from tensorflow.keras.layers import (
     Input,
 )
 from tensorflow.keras.models import Model
+from tensorflow.keras.models import load_model
 
 
 def conv_block(input, num_filters):
@@ -34,24 +35,37 @@ def build_vgg16_unet(input_shape, num_classes):
     inputs = Input(input_shape)
 
     """ Pre-trained VGG16 Model """
-    vgg16_img_net = VGG16(
-        include_top=False, weights="imagenet", input_shape=(64, 64, 3)
-    )
+    # vgg16_img_net = VGG16(
+    #      include_top=False, weights="imagenet", input_shape=(64, 64, 3)
+    # )
+    # model_path = "../tutorials/sentinel/data/models/vgg_ms_transfer_final.44-0.969.hdf5"
+    # vgg16_img_net = load_model(model_path)
     vgg16 = VGG16(include_top=False, weights=None, input_tensor=inputs)
 
     """ Encoder """
-    vgg16.get_layer("block1_conv2").set_weights(
-        vgg16_img_net.get_layer("block1_conv2").get_weights()
-    )
-    vgg16.get_layer("block2_conv2").set_weights(
-        vgg16_img_net.get_layer("block2_conv2").get_weights()
-    )
-    vgg16.get_layer("block3_conv3").set_weights(
-        vgg16_img_net.get_layer("block3_conv3").get_weights()
-    )
-    vgg16.get_layer("block4_conv3").set_weights(
-        vgg16_img_net.get_layer("block4_conv3").get_weights()
-    )
+    # names = [
+    #     "block1_conv2",
+    #     "block1_pool",
+    #     "block2_conv1",
+    #     "block2_conv2",
+    #     "block2_pool",
+    #     "block3_conv1",
+    #     "block3_conv2",
+    #     "block3_conv3",
+    #     "block3_pool",
+    #     "block4_conv1",
+    #     "block4_conv2",
+    #     "block4_conv3",
+    #     "block4_pool",
+    #     "block5_conv1",
+    #     "block5_conv2",
+    #     "block5_conv3",
+    # ]
+    # for name in names:
+    #     source_layer = vgg16_img_net.get_layer(name)
+    #     target_layer = vgg16.get_layer(name)
+    #     target_layer.set_weights(source_layer.get_weights())
+
     s1 = vgg16.get_layer("block1_conv2").output  # (512 x 512)
     s2 = vgg16.get_layer("block2_conv2").output  # (256 x 256)
     s3 = vgg16.get_layer("block3_conv3").output  # (128 x 128)

@@ -3,7 +3,7 @@
 """Home of the module for loading Sentinel-2 images and ground-truth masks."""
 
 import itertools
-from random import sample
+from random import sample, shuffle
 
 import numpy as np
 import tensorflow as tf
@@ -55,14 +55,14 @@ class SentinelUnetLoader:
 
     master_size = 1500  # Size of master image and mask in pixels per side
     limit_size = 1500  # Set to master size for training on all data
-    patch_size = 64  # Size of patch used for network training and prediction in pps
-    skip = 64  # Determines overlap between patches (1 - max overlap, 64 - no overlap)
+    patch_size = 256  # Size of patch used for network training and prediction in pps
+    skip = 128  # Determines overlap between patches (1 - max overlap, 64 - no overlap)
 
     def __init__(self, path):
         self._path = path
         n = self.limit_size
         self._master_image = preprocess_ms_image(
-            np.load(path + "image.npy").astype("float32")[:n, :n, :]
+            np.load(path + "image.npy").astype("float")[:n, :n, :]
         )
         self._master_mask = to_categorical(
             np.load(path + "mask.npy")[:n, :n, :], num_classes=10
@@ -111,7 +111,14 @@ class SentinelUnetLoader:
         """
         n, skip = self.limit_size - self.patch_size, self.skip
         one_dim_inds = list(range(0, n, skip))
-        n_rotate = [0, 1, 2, 3]  # N of 90 degree rotations
+        n_rotate = [
+            0,
+            1,
+            2,
+            3,  # N of 90 degree rotations
+        ]
+        # n_rotate = [0]  # N of 90 degree rotations
+        # flip_codes = [0]
         flip_codes = [
             0,  # don't flip
             1,  # flip 1st axis
@@ -121,6 +128,7 @@ class SentinelUnetLoader:
         all_patch_inds = list(
             itertools.product(one_dim_inds, one_dim_inds, n_rotate, flip_codes)
         )
+        shuffle(all_patch_inds)
 
         trn, tst = train_test_split(all_patch_inds, test_size=0.3, random_state=42)
         trn, vld = train_test_split(trn, test_size=0.2, random_state=42)
@@ -133,7 +141,7 @@ class SentinelUnetLoader:
         """return tuple with data for the HS image and the respective mask."""
 
         img, msk = tf.numpy_function(
-            self._preprocess_index, [ind], [tf.float32, tf.float32]
+            self._preprocess_index, [ind], [tf.float, tf.float]
         )
         return img, msk
 
