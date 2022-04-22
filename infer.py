@@ -7,7 +7,7 @@ import numpy as np
 from tensorflow.keras.models import load_model
 
 from data import preprocess_ms_image
-from helpers import SentinelHelper
+from helpers import SentinelHelper, NpuHelperForTF
 
 
 class Infererer:
