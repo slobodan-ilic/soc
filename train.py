@@ -40,7 +40,7 @@ def create_and_train_unet_model(path, input_shape, n_classes, batch_size, epochs
 
     # ---Load Sentinel-2 data with masks, to training and validation datasets---
     loader = SentinelUnetLoader(path)
-    training_indices, validation_indices, test_indices = loader.split_patch_indices
+    training_indices, validation_indices, test_indices = loader.split_indices
     train_gen = loader.img_gen(training_indices)
     validation_gen = loader.img_gen(validation_indices)
 
@@ -56,8 +56,6 @@ def create_and_train_unet_model(path, input_shape, n_classes, batch_size, epochs
     valid_steps = len(validation_indices) // batch_size
     for i in range(3, 20):
         unet_ms.layers[i].trainable = False
-    for i in range(3):
-        unet_ms.layers[i].trainable = True
 
     unet_ms.fit(
         train_gen,
@@ -78,10 +76,30 @@ def create_and_train_unet_model(path, input_shape, n_classes, batch_size, epochs
         callbacks=callbacks,
     )
 
+    for i in range(3, 30):
+        unet_ms.layers[i].trainable = True
+    unet_ms.compile(
+        loss="categorical_crossentropy",
+        optimizer="adam",
+        metrics=["categorical_accuracy"],
+    )
+    for i in range(len(unet_rgb.layers)):
+        unet_ms.layers[i].trainable = True
+    unet_ms.fit(
+        train_gen,
+        steps_per_epoch=train_steps,
+        validation_data=validation_gen,
+        validation_steps=valid_steps,
+        epochs=epochs,
+        callbacks=callbacks,
+    )
+    sess.close()
+
 
 if __name__ == "__main__":
-    path = "./sentinel-data/"
+    path = "./data/"
+    size = 64
     unet = create_and_train_unet_model(
-        path, input_shape=(64, 64, 13), n_classes=10, batch_size=8, epochs=20
+        path, input_shape=(size, size, 13), n_classes=10, batch_size=256, epochs=100
     )
     # print(unet.summary())
