@@ -44,8 +44,9 @@ def infer_lulc(image):
     inferer = Infererer("unet-ms-sentinel-0.0.h5")
 
     h, w, _ = image.shape
-    m = h // 64
-    n = w // 64
+    dim = 64
+    m = h // dim
+    n = w // dim
 
     row_patches = []
     for i in range(m):
@@ -66,6 +67,16 @@ def infer_lulc(image):
 
 
 if __name__ == "__main__":
-    bbox = [19.820823, 45.268260, 19.847773, 45.284206]
+    npu_config = {
+        "device_id": "0",
+        "rank_id": "0",
+        "rank_size": "0",
+        "job_id": "10385",
+        "rank_table_file": "",
+    }
+    sess = NpuHelperForTF(**npu_config).sess()
+
+    # bbox = [19.820823, 45.268260, 19.847773, 45.284206]
+    bbox = [19.5, 45.1, 20, 45.45]
     sh = SentinelHelper(bbox, 3, 2021)
     infer_lulc(sh.image())
