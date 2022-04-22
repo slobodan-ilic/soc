@@ -4,6 +4,7 @@
 import gzip
 import os
 import pickle
+import shutil
 
 import cv2
 import numpy as np
@@ -116,6 +117,11 @@ class Downloader:
             lulc_gzip_filename = os.path.join(location, f"{FILENAME_LULC}.gz")
             with gzip.open(lulc_gzip_filename, "rb") as f:
                 lulc = np.load(f)
+
+            if np.sum(np.squeeze(lulc) == 0) > np.prod(lulc.shape) // 2:
+                shutil.rmtree(location)
+                continue
+
             np.save(os.path.join(location, FILENAME_LULC), lulc)
             os.remove(lulc_gzip_filename)
 
