@@ -10,44 +10,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.utils import to_categorical
 
-
-def preprocess_ms_image(x):
-    # define mean and std values
-    mean = [
-        1353.036,
-        1116.468,
-        1041.475,
-        945.344,
-        1198.498,
-        2004.878,
-        2376.699,
-        2303.738,  # 8
-        732.957,
-        12.092,
-        1818.820,
-        1116.271,
-        2602.579,  # 8A
-    ]
-    std = [
-        65.479,
-        154.008,
-        187.997,
-        278.508,
-        228.122,
-        356.598,
-        456.035,
-        531.570,  # 8
-        98.947,
-        1.188,
-        378.993,
-        303.851,
-        503.181,  # 8A
-    ]
-    # loop over image channels
-    for idx, mean_value in enumerate(mean):
-        x[..., idx] -= mean_value
-        x[..., idx] /= std[idx]
-    return x
+from utils import lazyproperty, preprocess_ms_image
 
 
 class SentinelUnetLoader:
@@ -77,11 +40,30 @@ class SentinelUnetLoader:
             Y = np.array(batch_masks)
             yield X, Y
 
-    @property
+    @lazyproperty
     def _patches(self) -> list:
+        """list of all the sentinel patches."""
         return [psh for psh in os.listdir(self._path) if not psh.startswith(".")]
 
-    @property
+    @lazyproperty
+    def _images(self) -> np.ndarray:
+        images = []
+        for patch in self._patches:
+            filename = f"{self._path}{patch}/img.npy"
+            img = preprocess_ms_image(np.load(filename).astype("float64"))
+            images.append(img)
+        return np.array(images)
+
+    @lazyproperty
+    def _masks(self) -> np.ndarray:
+        masks = []
+        for patch in self._patches:
+            filename = f"{self._path}{patch}/LULC.npy"
+            msk = to_categorical(np.load(filename), num_classes=10)
+            masks.append(msk)
+        return np.array(masks)
+
+    @lazyproperty
     def split_indices(self) -> tuple:
         """generate training, validation and test splits based on patch indices.
 
@@ -123,14 +105,8 @@ class SentinelUnetLoader:
     def _preprocess_index(self, ind):
         n = self.patch_size
         pch, i, j, rotate, flip = ind
-        patch = self._path + self._patches[pch]
-        img_filename = patch + "/img.npy"
-        msk_filename = patch + "/LULC.npy"
-        img_pch = preprocess_ms_image(np.load(img_filename).astype("float64"))
-        lulc = np.load(msk_filename)
-        msk_pch = to_categorical(lulc, num_classes=10)
-        img = img_pch[i : i + n, j : j + n, :]
-        msk = msk_pch[i : i + n, j : j + n, :]
+        img = self._images[pch][i : i + n, j : j + n, :]
+        msk = self._masks[pch][i : i + n, j : j + n, :]
         if flip:
             axes = {1: 0, 2: 1, 3: (0, 1)}[flip]  # flip code -> axes
             img = np.flip(img, axes)
