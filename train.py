@@ -7,6 +7,22 @@ from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLRO
 
 from data import SentinelUnetLoader
 
+try:
+    from helpers import NpuHelperForTF as NH
+
+    npu_config = {
+        "device_id": "0",
+        "rank_id": "0",
+        "rank_size": "0",
+        "job_id": "10385",
+        "rank_table_file": "",
+    }
+
+    print("************************ INIT NPU SESSION *********************************")
+    sess = NH(**npu_config).sess() if NH else None
+except ModuleNotFoundError:
+    sess = None
+
 sm.set_framework("tf.keras")
 
 
@@ -93,13 +109,17 @@ def create_and_train_unet_model(path, input_shape, n_classes, batch_size, epochs
         epochs=epochs,
         callbacks=callbacks,
     )
-    sess.close()
 
 
 if __name__ == "__main__":
     path = "./data/"
     size = 64
+
+    print("************************ CREAATE AND TRAIN ********************************")
     unet = create_and_train_unet_model(
-        path, input_shape=(size, size, 13), n_classes=10, batch_size=256, epochs=100
+        path, input_shape=(size, size, 13), n_classes=10, batch_size=64, epochs=100
     )
-    # print(unet.summary())
+
+    if sess is not None:
+        print("************************ CLOSE NPU SESSION ****************************")
+        sess.close()
