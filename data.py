@@ -64,7 +64,22 @@ class SentinelUnetLoader:
         return np.array(masks)
 
     @lazyproperty
-    def split_indices(self) -> tuple:
+    def _n_rotate(self) -> list:
+        """N of 90 degree rotations."""
+        return [0, 1, 2, 3]
+
+    @lazyproperty
+    def _flip_codes(self) -> list:
+        """List of flip codes."""
+        return [
+            0,  # don't flip
+            1,  # flip 1st axis
+            2,  # flip 2nd axis
+            3,  # flip both axes
+        ]
+
+    @lazyproperty
+    def split_patch_indices(self) -> tuple:
         """generate training, validation and test splits based on patch indices.
 
         All possible patch indices go from the upper left corner of the master image, to
@@ -73,25 +88,14 @@ class SentinelUnetLoader:
         minus the dimension of a patch). The total number of possible patches is the
         product of the number of possible patches along each dimension.
         """
-        n_patches = len(self._patches)
-        n_pixels_per_dim, skip = self.master_size - self.patch_size, self.skip
-        patch_inds = list(range(n_patches))
-        one_dim_inds = list(range(0, n_pixels_per_dim, skip))
-        n_rotate = [
-            0,
-            1,
-            2,
-            3,
-        ]  # N of 90 degree rotations
-        flip_codes = [
-            0,  # don't flip
-            1,  # flip 1st axis
-            2,  # flip 2nd axis
-            3,  # flip both axes
-        ]  # Codes for flip axes
+        n_pixels_per_dim = self.master_size - self.patch_size
         all_patch_inds = list(
             itertools.product(
-                patch_inds, one_dim_inds, one_dim_inds, n_rotate, flip_codes
+                range(len(self._patches)),
+                range(0, n_pixels_per_dim, self.skip),
+                range(0, n_pixels_per_dim, self.skip),
+                self._n_rotate,
+                self._flip_codes,
             )
         )
 
@@ -119,7 +123,7 @@ class SentinelUnetLoader:
 if __name__ == "__main__":
     path = "./data/"
     loader = SentinelUnetLoader(path)
-    trn, vld, tst = loader.split_indices
+    trn, vld, tst = loader.split_patch_indices
     print(len(trn))
     for i, el in enumerate(loader.img_gen(trn)):
         print(i)

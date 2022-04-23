@@ -56,7 +56,7 @@ def create_and_train_unet_model(path, input_shape, n_classes, batch_size, epochs
 
     # ---Load Sentinel-2 data with masks, to training and validation datasets---
     loader = SentinelUnetLoader(path)
-    training_indices, validation_indices, test_indices = loader.split_indices
+    training_indices, validation_indices, test_indices = loader.split_patch_indices
     train_gen = loader.img_gen(training_indices)
     validation_gen = loader.img_gen(validation_indices)
 
