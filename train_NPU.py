@@ -2,11 +2,26 @@
 
 """Home of the U-Net model preparation and training."""
 
-from helpers import NpuHelperForTF
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 
 from data import SentinelUnetLoader
 from model_01 import build_vgg16_unet
+
+try:
+    from helpers import NpuHelperForTF as NH
+
+    npu_config = {
+        "device_id": "0",
+        "rank_id": "0",
+        "rank_size": "0",
+        "job_id": "10385",
+        "rank_table_file": "",
+    }
+
+    print("************************ INIT NPU SESSION *********************************")
+    sess = NH(**npu_config).sess() if NH else None
+except ModuleNotFoundError:
+    sess = None
 
 
 def create_and_train_unet_model(path, input_shape, n_classes, batch_size, epochs):
@@ -17,18 +32,6 @@ def create_and_train_unet_model(path, input_shape, n_classes, batch_size, epochs
 
     unet_APU2 = build_vgg16_unet(input_shape, n_classes)
     print(unet_APU2.summary())
-
-    # ---Replace first layer of the pretrained network to match MS with 13 channels---
-    npu_config = {
-        "device_id": "0",
-        "rank_id": "0",
-        "rank_size": "0",
-        "job_id": "10385",
-        "rank_table_file": "",
-    }
-
-    print("________________________ INIT NPU SESSION ________________________")
-    sess = NpuHelperForTF(**npu_config).sess()
 
     print("--------------------- compiling")
     unet_APU2.compile(
@@ -65,13 +68,13 @@ def create_and_train_unet_model(path, input_shape, n_classes, batch_size, epochs
         callbacks=callbacks,
     )
 
-    print("________________________ CLOSE NPU SESSION _______________________")
-    sess.close()
-
 
 if __name__ == "__main__":
-    path = "./sentinel-data/"
+    path = "./data/"
     unet = create_and_train_unet_model(
         path, input_shape=(64, 64, 13), n_classes=10, batch_size=8, epochs=20
     )
-    # print(unet.summary())
+
+    if sess is not None:
+        print("************************ CLOSE NPU SESSION ****************************")
+        sess.close()
