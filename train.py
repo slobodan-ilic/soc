@@ -6,6 +6,7 @@ import segmentation_models as sm
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 
 from data import SentinelUnetLoader
+from helpers import NpuHelperForTF
 
 sm.set_framework("tf.keras")
 
@@ -99,7 +100,18 @@ def create_and_train_unet_model(path, input_shape, n_classes, batch_size, epochs
 if __name__ == "__main__":
     path = "./data/"
     size = 64
+
+    npu_config = {
+        "device_id": "0",
+        "rank_id": "0",
+        "rank_size": "0",
+        "job_id": "10385",
+        "rank_table_file": "",
+    }
+
+    print("________________________ INIT NPU SESSION ________________________")
+    sess = NpuHelperForTF(**npu_config).sess()
     unet = create_and_train_unet_model(
         path, input_shape=(size, size, 13), n_classes=10, batch_size=256, epochs=100
     )
-    # print(unet.summary())
+    sess.close()
