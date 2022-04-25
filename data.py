@@ -4,6 +4,7 @@
 
 import itertools
 import os
+import sys
 from random import sample
 
 import numpy as np
@@ -13,7 +14,7 @@ from tensorflow.keras.utils import to_categorical
 from utils import lazyproperty, preprocess_ms_image
 
 
-class SentinelUnetLoader:
+class Loader:
     """Implementation for the U-Net related functionality for Sentinel segmentation."""
 
     master_size = 500  # Size of master image and mask in pixels per side
@@ -32,7 +33,7 @@ class SentinelUnetLoader:
             batch_masks = []
             shuffled = sample(inds, bch_size)
             for index in shuffled:
-                img, msk = self._preprocess_index(index)
+                img, msk = self._preprocess_patch_index(index)
                 # print(index)
                 batch_patches += [img]
                 batch_masks += [msk]
@@ -79,7 +80,7 @@ class SentinelUnetLoader:
         ]
 
     @lazyproperty
-    def split_patch_indices(self) -> tuple:
+    def split_patch_indices(self) -> list:
         """generate training, validation and test splits based on patch indices.
 
         All possible patch indices go from the upper left corner of the master image, to
@@ -99,14 +100,16 @@ class SentinelUnetLoader:
             )
         )
 
-        trn, tst = train_test_split(all_patch_inds, test_size=0.3, random_state=42)
-        trn, vld = train_test_split(trn, test_size=0.2, random_state=42)
+        # trn, tst = train_test_split(all_patch_inds, test_size=0.3, random_state=42)
+        # trn, vld = train_test_split(trn, test_size=0.2, random_state=42)
+        trn, vld = train_test_split(all_patch_inds, test_size=0.2, random_state=42)
 
-        return trn, vld, tst
+        # return trn, vld, tst
+        return trn, vld
 
     # ------------------------- IMPLEMENTATION ---------------------------------------
 
-    def _preprocess_index(self, ind):
+    def _preprocess_patch_index(self, ind):
         n = self.patch_size
         pch, i, j, rotate, flip = ind
         img = self._images[pch][i : i + n, j : j + n, :]
@@ -121,9 +124,9 @@ class SentinelUnetLoader:
 
 
 if __name__ == "__main__":
-    path = "./data/"
-    loader = SentinelUnetLoader(path)
-    trn, vld, tst = loader.split_patch_indices
-    print(len(trn))
+    path = sys.argv[-1]
+    loader = Loader(path)
+    # trn, vld, tst = loader.split_patch_indices
+    trn, vld = loader.split_patch_indices
     for i, el in enumerate(loader.img_gen(trn)):
         print(i)

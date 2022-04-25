@@ -2,13 +2,15 @@
 
 """Home of the U-Net model preparation and training."""
 
+import sys
+
 import segmentation_models as sm
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 
-from data import SentinelUnetLoader
+from data import Loader
 
 try:
-    from helpers import NpuHelperForTF as NH
+    from helpers.npu import NpuHelperForTF as NH
 
     npu_config = {
         "device_id": "0",
@@ -55,8 +57,8 @@ def create_and_train_unet_model(path, input_shape, n_classes, batch_size, epochs
     )
 
     # ---Load Sentinel-2 data with masks, to training and validation datasets---
-    loader = SentinelUnetLoader(path)
-    training_indices, validation_indices, test_indices = loader.split_patch_indices
+    loader = Loader(path)
+    training_indices, validation_indices = loader.split_patch_indices
     train_gen = loader.img_gen(training_indices)
     validation_gen = loader.img_gen(validation_indices)
 
@@ -112,8 +114,8 @@ def create_and_train_unet_model(path, input_shape, n_classes, batch_size, epochs
 
 
 if __name__ == "__main__":
-    path = "./data/"
-    size = 64
+    path = sys.argv[-1]
+    size = int(sys.argv[-2])
 
     print("************************ CREAATE AND TRAIN ********************************")
     unet = create_and_train_unet_model(

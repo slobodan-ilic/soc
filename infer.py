@@ -7,7 +7,23 @@ import numpy as np
 from tensorflow.keras.models import load_model
 
 from data import preprocess_ms_image
-from helpers import SentinelHelper, NpuHelperForTF
+from helpers.sentinel import SentinelHelper
+
+try:
+    from helpers.npu import NpuHelperForTF as NH
+
+    npu_config = {
+        "device_id": "0",
+        "rank_id": "0",
+        "rank_size": "0",
+        "job_id": "10385",
+        "rank_table_file": "",
+    }
+
+    print("************************ INIT NPU SESSION *********************************")
+    sess = NH(**npu_config).sess() if NH else None
+except ModuleNotFoundError:
+    sess = None
 
 
 class Infererer:
@@ -67,16 +83,11 @@ def infer_lulc(image):
 
 
 if __name__ == "__main__":
-    npu_config = {
-        "device_id": "0",
-        "rank_id": "0",
-        "rank_size": "0",
-        "job_id": "10385",
-        "rank_table_file": "",
-    }
-    sess = NpuHelperForTF(**npu_config).sess()
+    bbox = [19.820823, 45.268260, 19.847773, 45.284206]
+    # bbox = [19.5, 45.1, 20, 45.45]
+    sh = SentinelHelper(bbox, 10, 2021)
+    infer_lulc(sh.image)
 
-    # bbox = [19.820823, 45.268260, 19.847773, 45.284206]
-    bbox = [19.5, 45.1, 20, 45.45]
-    sh = SentinelHelper(bbox, 3, 2021)
-    infer_lulc(sh.image())
+    if sess is not None:
+        print("************************ CLOSE NPU SESSION ****************************")
+        sess.close()
