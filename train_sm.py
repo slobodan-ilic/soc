@@ -46,21 +46,18 @@ def create_and_train_unet_model(path, input_shape, n_classes, batch_size, epochs
         activation="softmax",
         encoder_weights=None,
     )
-    # ---Replace first layer of the pretrained network to match MS with 13 channels---
-    # for i in range(len(unet_rgb.layers)):
-    for i in range(3, 20):
-        unet_ms.layers[i].set_weights(unet_rgb.layers[i].get_weights())
-    unet_ms.compile(
-        loss="categorical_crossentropy",
-        optimizer="adam",
-        metrics=["categorical_accuracy"],
-    )
 
     # ---Load Sentinel-2 data with masks, to training and validation datasets---
     loader = Loader(path, input_shape[0], input_shape[0] // 2)
     training_indices, validation_indices = loader.split_patch_indices
     train_gen = loader.img_gen(training_indices)
     validation_gen = loader.img_gen(validation_indices)
+
+    # ---Replace first layer of the pretrained network to match MS with 13 channels---
+    for i in range(3, 20):
+        unet_ms.layers[i].set_weights(unet_rgb.layers[i].get_weights())
+    for i in range(3, 20):
+        unet_ms.layers[i].trainable = False
 
     # ---Prepare various callbacks---
     callbacks = [
@@ -72,9 +69,11 @@ def create_and_train_unet_model(path, input_shape, n_classes, batch_size, epochs
     # ---Train the model
     train_steps = len(training_indices) // batch_size
     valid_steps = len(validation_indices) // batch_size
-    for i in range(3, 20):
-        unet_ms.layers[i].trainable = False
-
+    unet_ms.compile(
+        loss="categorical_crossentropy",
+        optimizer="adam",
+        metrics=["categorical_accuracy"],
+    )
     unet_ms.fit(
         train_gen,
         steps_per_epoch=train_steps,
@@ -83,26 +82,15 @@ def create_and_train_unet_model(path, input_shape, n_classes, batch_size, epochs
         epochs=epochs,
         callbacks=callbacks,
     )
+
+    # ---Prepare for "tightening"---
     for i in range(len(unet_rgb.layers)):
-        unet_ms.layers[i].trainable = True
-    unet_ms.fit(
-        train_gen,
-        steps_per_epoch=train_steps,
-        validation_data=validation_gen,
-        validation_steps=valid_steps,
-        epochs=epochs,
-        callbacks=callbacks,
-    )
-
-    for i in range(3, 30):
         unet_ms.layers[i].trainable = True
     unet_ms.compile(
         loss="categorical_crossentropy",
         optimizer="adam",
         metrics=["categorical_accuracy"],
     )
-    for i in range(len(unet_rgb.layers)):
-        unet_ms.layers[i].trainable = True
     unet_ms.fit(
         train_gen,
         steps_per_epoch=train_steps,
