@@ -5,6 +5,7 @@
 import cv2
 import numpy as np
 from tensorflow.keras.models import load_model
+from utils import lazyproperty
 
 from data import preprocess_ms_image
 from helpers.sentinel import SentinelHelper
@@ -30,6 +31,10 @@ class Infererer:
     def __init__(self, path):
         self._unet = load_model(path)
 
+    @lazyproperty
+    def n(self):
+        return self._unet.input_shape[-2]
+
     def infer(self, img):
         input_ = np.array([preprocess_ms_image(img.astype("float32"))])
         return self._unet.predict(input_)[0]
@@ -46,8 +51,8 @@ def create_mask(classes) -> np.array:
         5: (243, 154, 6),  # --------- Water
         6: (252, 208, 149),  # ------- Wetlands
         7: (182, 123, 150),  # ------- Tundra
-        8: (166, 166, 166),  # ------- Bareland
-        9: (0, 0, 0),  # ------------- Snow und Ice
+        8: (60, 20, 220),  # --------- Artificial Surface
+        9: (166, 166, 166),  # ------- Bareland
     }
 
     mask = np.full(classes.shape + (3,), (0, 0, 0), np.uint8)
@@ -61,7 +66,7 @@ def infer_lulc(image):
     inferer = Infererer("unet-ms-sentinel-0.0.h5")
 
     h, w, _ = image.shape
-    dim = 64
+    dim = inferer.n
     m = h // dim
     n = w // dim
 
@@ -69,7 +74,7 @@ def infer_lulc(image):
     for i in range(m):
         col_patches = []
         for j in range(n):
-            img_patch = image[i * 64 : (i + 1) * 64, j * 64 : (j + 1) * 64, :]
+            img_patch = image[i * dim : (i + 1) * dim, j * dim : (j + 1) * dim, :]
             pred = inferer.infer(img_patch)
             classes = np.argmax(pred, axis=2)
             col_patches.append(classes)
@@ -77,7 +82,7 @@ def infer_lulc(image):
         row_patches.append(row_patch)
 
     mask = create_mask(np.vstack(row_patches))
-    img = image[0 : m * 64, 0 : n * 64, :]
+    img = image[0 : m * dim, 0 : n * dim, :]
     tc_image = np.array(img[:, :, 1:4] * 3.5 / 1e4 * 255, dtype="uint8")
     fused = cv2.addWeighted(tc_image, 0.6, mask, 0.4, 0)
     cv2.imwrite("fused.png", fused)

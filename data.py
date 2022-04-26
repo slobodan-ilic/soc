@@ -17,12 +17,12 @@ from utils import lazyproperty, preprocess_ms_image
 class Loader:
     """Implementation for the U-Net related functionality for Sentinel segmentation."""
 
-    master_size = 500  # Size of master image and mask in pixels per side
     patch_size = 64  # Size of patch used for network training and prediction in pps
-    skip = 64  # Determines overlap between patches (1 - max overlap, 64 - no overlap)
 
-    def __init__(self, path):
+    def __init__(self, path, patch_size, skip):
         self._path = path
+        self._patch_size = patch_size
+        self._skip = skip
 
     # ------------------------- API --------------------------------------------------
 
@@ -40,6 +40,11 @@ class Loader:
             X = np.array(batch_patches)
             Y = np.array(batch_masks)
             yield X, Y
+
+    @lazyproperty
+    def _master_size(self):
+        """int representing dim of input."""
+        return self._images[0].shape[0]
 
     @lazyproperty
     def _patches(self) -> list:
@@ -60,8 +65,9 @@ class Loader:
         masks = []
         for patch in self._patches:
             filename = f"{self._path}{patch}/LULC.npy"
-            msk = to_categorical(np.load(filename), num_classes=10)
-            masks.append(msk)
+            logits = np.load(filename)
+            one_hot = to_categorical(logits, num_classes=10)
+            masks.append(one_hot)
         return np.array(masks)
 
     @lazyproperty
@@ -89,12 +95,12 @@ class Loader:
         minus the dimension of a patch). The total number of possible patches is the
         product of the number of possible patches along each dimension.
         """
-        n_pixels_per_dim = self.master_size - self.patch_size
+        n_pixels_per_dim = self._master_size - self.patch_size
         all_patch_inds = list(
             itertools.product(
                 range(len(self._patches)),
-                range(0, n_pixels_per_dim, self.skip),
-                range(0, n_pixels_per_dim, self.skip),
+                range(0, n_pixels_per_dim, self._skip),
+                range(0, n_pixels_per_dim, self._skip),
                 self._n_rotate,
                 self._flip_codes,
             )
@@ -124,9 +130,10 @@ class Loader:
 
 
 if __name__ == "__main__":
-    path = sys.argv[-1]
-    loader = Loader(path)
-    # trn, vld, tst = loader.split_patch_indices
+    path = sys.argv[-3]
+    skip = int(sys.argv[-2])
+    patch_size = int(sys.argv[-1])
+    loader = Loader(path, patch_size, skip)
     trn, vld = loader.split_patch_indices
     for i, el in enumerate(loader.img_gen(trn)):
         print(i)

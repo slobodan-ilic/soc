@@ -57,7 +57,7 @@ def create_and_train_unet_model(path, input_shape, n_classes, batch_size, epochs
     )
 
     # ---Load Sentinel-2 data with masks, to training and validation datasets---
-    loader = Loader(path)
+    loader = Loader(path, input_shape[0], input_shape[0] // 2)
     training_indices, validation_indices = loader.split_patch_indices
     train_gen = loader.img_gen(training_indices)
     validation_gen = loader.img_gen(validation_indices)
@@ -114,12 +114,16 @@ def create_and_train_unet_model(path, input_shape, n_classes, batch_size, epochs
 
 
 if __name__ == "__main__":
-    path = sys.argv[-1]
-    size = int(sys.argv[-2])
+    path = sys.argv[-2]
+    patch_size = int(sys.argv[-1])
 
     print("************************ CREAATE AND TRAIN ********************************")
     unet = create_and_train_unet_model(
-        path, input_shape=(size, size, 13), n_classes=10, batch_size=64, epochs=100
+        path,
+        input_shape=(patch_size, patch_size, 13),
+        n_classes=10,
+        batch_size=64,
+        epochs=100,
     )
 
     if sess is not None:
