@@ -38,17 +38,18 @@ class Infererer:
 def create_mask(classes) -> np.array:
     """Create color mask in RGB based on mask classes."""
     codes = {
-        0: (147, 221, 187),  # ---- Annual Crop
-        1: (62, 157, 87),  # ------ Forest
-        2: (44, 93, 51),  # ------- Herbaceous Vegetation
-        3: (148, 150, 151),  # ---- Highway
-        4: (156, 159, 235),  # ---- Industrial
-        5: (124, 192, 241),  # ---- Pasture
-        6: (79, 235, 247),  # ----- Permanent Crop
-        7: (44, 52, 208),  # ------ Residential
-        8: (175, 120, 60),  # ----- River
-        9: (224, 205, 173),  # ---- SeaLake
+        0: (255, 255, 255),  # ------- Nothing
+        1: (0, 255, 255),  # --------- Cultivated
+        2: (7, 73, 5),  # ------------ Forest
+        3: (0, 165, 255),  # --------- Grassland
+        4: (0, 96, 128),  # ---------- Shrubland
+        5: (243, 154, 6),  # --------- Water
+        6: (252, 208, 149),  # ------- Wetlands
+        7: (182, 123, 150),  # ------- Tundra
+        8: (166, 166, 166),  # ------- Bareland
+        9: (0, 0, 0),  # ------------- Snow und Ice
     }
+
     mask = np.full(classes.shape + (3,), (0, 0, 0), np.uint8)
     for class_ in codes:
         mask[classes == class_] = codes[class_]
@@ -84,7 +85,7 @@ def infer_lulc(image):
 
 if __name__ == "__main__":
     bbox = [19.820823, 45.268260, 19.847773, 45.284206]
-    # bbox = [19.5, 45.1, 20, 45.45]
+    # bbox = [19.5, 45.09, 20.31, 45.5]
     sh = SentinelHelper(bbox, 10, 2021)
     infer_lulc(sh.image)
 
