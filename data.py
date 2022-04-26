@@ -17,8 +17,6 @@ from utils import lazyproperty, preprocess_ms_image
 class Loader:
     """Implementation for the U-Net related functionality for Sentinel segmentation."""
 
-    patch_size = 64  # Size of patch used for network training and prediction in pps
-
     def __init__(self, path, patch_size, skip):
         self._path = path
         self._patch_size = patch_size
@@ -95,7 +93,7 @@ class Loader:
         minus the dimension of a patch). The total number of possible patches is the
         product of the number of possible patches along each dimension.
         """
-        n_pixels_per_dim = self._master_size - self.patch_size
+        n_pixels_per_dim = self._master_size - self._patch_size
         all_patch_inds = list(
             itertools.product(
                 range(len(self._patches)),
@@ -116,7 +114,7 @@ class Loader:
     # ------------------------- IMPLEMENTATION ---------------------------------------
 
     def _preprocess_patch_index(self, ind):
-        n = self.patch_size
+        n = self._patch_size
         pch, i, j, rotate, flip = ind
         img = self._images[pch][i : i + n, j : j + n, :]
         msk = self._masks[pch][i : i + n, j : j + n, :]
@@ -131,8 +129,8 @@ class Loader:
 
 if __name__ == "__main__":
     path = sys.argv[-3]
-    skip = int(sys.argv[-2])
-    patch_size = int(sys.argv[-1])
+    patch_size = int(sys.argv[-2])
+    skip = int(sys.argv[-1])
     loader = Loader(path, patch_size, skip)
     trn, vld = loader.split_patch_indices
     for i, el in enumerate(loader.img_gen(trn)):
