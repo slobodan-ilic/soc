@@ -6,6 +6,7 @@ import sys
 
 import segmentation_models as sm
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
+from tensorflow.keras.optimizers import SGD
 
 from data import Loader
 
@@ -86,9 +87,11 @@ def create_and_train_unet_model(path, input_shape, skip, n_classes, batch_size, 
     # ---Prepare for "tightening"---
     for i in range(len(unet_rgb.layers)):
         unet_ms.layers[i].trainable = True
+    for i in range(2, 8):
+        unet_ms.layers[i].trainable = False
     unet_ms.compile(
+        optimizer=SGD(lr=0.0001, momentum=0.9),
         loss="categorical_crossentropy",
-        optimizer="adam",
         metrics=["categorical_accuracy"],
     )
     unet_ms.fit(
