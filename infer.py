@@ -2,13 +2,15 @@
 
 """Home of the code for inference of Sentinel-2 MS images with U-Net"""
 
+import sys
+
 import cv2
 import numpy as np
 from tensorflow.keras.models import load_model
-from utils import lazyproperty
 
 from data import preprocess_ms_image
 from helpers.sentinel import SentinelHelper
+from utils import lazyproperty
 
 try:
     from helpers.npu import NpuHelperForTF as NH
@@ -61,38 +63,41 @@ def create_mask(classes) -> np.array:
     return mask
 
 
-def infer_lulc(image):
+def infer_lulc(image, pad):
     """Infer LULC and save image as 'fused.png' in the local directory."""
     inferer = Infererer("unet-ms-sentinel-0.0.h5")
 
     h, w, _ = image.shape
     dim = inferer.n
-    m = h // dim
-    n = w // dim
+    span = dim - 2 * pad
+    m = 1 + (h - dim) // span
+    n = 1 + (w - dim) // span
 
     row_patches = []
     for i in range(m):
         col_patches = []
         for j in range(n):
-            img_patch = image[i * dim : (i + 1) * dim, j * dim : (j + 1) * dim, :]
+            img_patch = image[i * span : i * span + dim, j * span : j * span + dim, :]
             pred = inferer.infer(img_patch)
-            classes = np.argmax(pred, axis=2)
+            classes = np.argmax(pred, axis=2)[pad:(-pad), pad:(-pad)]
             col_patches.append(classes)
         row_patch = np.hstack(col_patches)
         row_patches.append(row_patch)
 
     mask = create_mask(np.vstack(row_patches))
-    img = image[0 : m * dim, 0 : n * dim, :]
+    img = image[0 : m * span, 0 : n * span, :]
     tc_image = np.array(img[:, :, 1:4] * 3.5 / 1e4 * 255, dtype="uint8")
     fused = cv2.addWeighted(tc_image, 0.6, mask, 0.4, 0)
     cv2.imwrite("fused.png", fused)
 
 
 if __name__ == "__main__":
+    pad = int(sys.argv[-1])
+
     bbox = [19.820823, 45.268260, 19.847773, 45.284206]
     # bbox = [19.5, 45.09, 20.31, 45.5]
     sh = SentinelHelper(bbox, 10, 2021)
-    infer_lulc(sh.image)
+    infer_lulc(sh.image, pad)
 
     if sess is not None:
         print("************************ CLOSE NPU SESSION ****************************")
