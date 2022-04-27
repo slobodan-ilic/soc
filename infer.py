@@ -70,13 +70,13 @@ def infer_lulc(image, pad):
     h, w, _ = image.shape
     dim = inferer.n
     span = dim - 2 * pad
-    m = 1 + (h - dim) // span
-    n = 1 + (w - dim) // span
+    nrows = (h - 2 * pad) // span
+    ncols = (w - 2 * pad) // span
 
     row_patches = []
-    for i in range(m):
+    for i in range(nrows):
         col_patches = []
-        for j in range(n):
+        for j in range(ncols):
             img_patch = image[i * span : i * span + dim, j * span : j * span + dim, :]
             pred = inferer.infer(img_patch)
             classes = np.argmax(pred, axis=2)[pad:(-pad), pad:(-pad)]
@@ -85,7 +85,7 @@ def infer_lulc(image, pad):
         row_patches.append(row_patch)
 
     mask = create_mask(np.vstack(row_patches))
-    img = image[0 : m * span, 0 : n * span, :]
+    img = image[pad : pad + nrows * span, pad : pad + ncols * span, :]
     tc_image = np.array(img[:, :, 1:4] * 3.5 / 1e4 * 255, dtype="uint8")
     fused = cv2.addWeighted(tc_image, 0.6, mask, 0.4, 0)
     cv2.imwrite("fused.png", fused)
