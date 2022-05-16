@@ -91,23 +91,23 @@ def create_and_train_unet_model(path, input_shape, skip, n_classes, batch_size, 
     )
 
     # ---Prepare for "tightening"---
-    for i in range(len(unet_rgb.layers)):
-        unet_ms.layers[i].trainable = True
-    for i in range(2, 8):
-        unet_ms.layers[i].trainable = False
-    unet_ms.compile(
-        optimizer=SGD(lr=0.0001, momentum=0.9),
-        loss="categorical_crossentropy",
-        metrics=["categorical_accuracy"],
-    )
-    unet_ms.fit(
-        train_gen,
-        steps_per_epoch=train_steps,
-        validation_data=validation_gen,
-        validation_steps=valid_steps,
-        epochs=epochs,
-        callbacks=callbacks,
-    )
+    # for i in range(len(unet_rgb.layers)):
+    #     unet_ms.layers[i].trainable = True
+    # for i in range(2, 8):
+    #     unet_ms.layers[i].trainable = False
+    # unet_ms.compile(
+    #     optimizer=SGD(lr=0.0001, momentum=0.9),
+    #     loss="categorical_crossentropy",
+    #     metrics=["categorical_accuracy"],
+    # )
+    # unet_ms.fit(
+    #     train_gen,
+    #     steps_per_epoch=train_steps,
+    #     validation_data=validation_gen,
+    #     validation_steps=valid_steps,
+    #     epochs=epochs,
+    #     callbacks=callbacks,
+    # )
 
 
 if __name__ == "__main__":

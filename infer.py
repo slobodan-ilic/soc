@@ -12,6 +12,10 @@ from data import preprocess_ms_image
 from helpers.sentinel import SentinelHelper
 from utils import lazyproperty
 
+from tensorflow.keras.losses import categorical_crossentropy
+def custom_loss(y_true, y_pred):
+    return categorical_crossentropy(y_true[:, :, :, 1:], y_pred[:, :, :, 1:])
+
 try:
     from helpers.npu import NpuHelperForTF as NH
 
@@ -31,7 +35,7 @@ except ModuleNotFoundError:
 
 class Infererer:
     def __init__(self, path):
-        self._unet = load_model(path)
+        self._unet = load_model(path, custom_objects={"custom_loss": custom_loss})
 
     @lazyproperty
     def n(self):
@@ -94,9 +98,9 @@ def infer_lulc(image, pad):
 if __name__ == "__main__":
     pad = int(sys.argv[-1])
 
-    bbox = [19.820823, 45.268260, 19.847773, 45.284206]
-    # bbox = [19.5, 45.09, 20.31, 45.5]
-    sh = SentinelHelper(bbox, 10, 2021)
+    # bbox = [19.820823, 45.268260, 19.847773, 45.284206]
+    bbox = [19.5, 45.09, 20.31, 45.5]
+    sh = SentinelHelper(bbox, 8, 2021)
     infer_lulc(sh.image, pad)
 
     if sess is not None:
