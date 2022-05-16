@@ -115,15 +115,15 @@ class Loader:
 
     def _preprocess_patch_index(self, ind):
         n = self._patch_size
-        pch, i, j, rotate, flip = ind
+        pch, i, j, n_rotate, flip_code = ind
         img = self._images[pch][i : i + n, j : j + n, :]
         msk = self._masks[pch][i : i + n, j : j + n, :]
-        if flip:
-            axes = {1: 0, 2: 1, 3: (0, 1)}[flip]  # flip code -> axes
+        if flip_code:
+            axes = {1: 0, 2: 1, 3: (0, 1)}[flip_code]  # flip code -> axes
             img = np.flip(img, axes)
             msk = np.flip(msk, axes)
-        img = np.rot90(img)
-        msk = np.rot90(msk)
+        img = np.rot90(img, n_rotate)
+        msk = np.rot90(msk, n_rotate)
         return img, msk
 
 
