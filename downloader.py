@@ -18,7 +18,7 @@ from sentinelhub import (
 from tqdm import tqdm
 from wget import download
 
-from all_patches import patches as PATCHES
+from patches import patches as PATCHES
 
 shc = SHConfig()
 
@@ -65,10 +65,9 @@ URL = (
 
 
 class Downloader:
-    def __init__(self, start_date, end_date, resolution=10):
-        self.start_date = start_date
-        self.end_date = end_date
-        self.resolution = resolution
+    def __init__(self, year, resolution=10):
+        self._year = year
+        self._resolution = resolution
 
     def bar_progress(current, total, width=80):
         """Downloading process monitor"""
@@ -77,14 +76,14 @@ class Downloader:
             % (current / total * 100, current, total)
         )
 
-    def save_image(self, location, bbox):
-        id_size = bbox_to_dimensions(bbox, resolution=self.resolution)
+    def save_image(self, location, bbox, start_date, end_date):
+        id_size = bbox_to_dimensions(bbox, resolution=self._resolution)
         request_all_bands = SentinelHubRequest(
             evalscript=EVALSCRIPT_ALL_BANDS,
             input_data=[
                 SentinelHubRequest.input_data(
                     data_collection=DataCollection.SENTINEL2_L1C,
-                    time_interval=(self.start_date, self.end_date),
+                    time_interval=(start_date, end_date),
                     mosaicking_order="leastCC",
                 )
             ],
@@ -94,9 +93,10 @@ class Downloader:
             config=shc,
         )
         img = request_all_bands.get_data()[0]
-        np.save(f"{location}/img.npy", img)
+        month = start_date.split("-")[1]
+        np.save(f"{location}/{month}-img.npy", img)
         tc_img = np.array(img[:, :, 1:4] * 3.5 / 1e4 * 255, dtype="uint8")
-        cv2.imwrite(f"{location}/img.png", tc_img)
+        cv2.imwrite(f"{location}/{month}-img.png", tc_img)
 
     def download_patches(self):
         """Creates a folder and paths for downloading files bbox and lulc"""
@@ -118,6 +118,7 @@ class Downloader:
             with gzip.open(lulc_gzip_filename, "rb") as f:
                 lulc = np.load(f)
 
+            # ---Only save the relevant LULC data, with enough pixels defined
             if np.sum(np.squeeze(lulc) == 0) > np.prod(lulc.shape) // 2:
                 shutil.rmtree(location)
                 continue
@@ -129,11 +130,18 @@ class Downloader:
             bbox_filename = os.path.join(location, FILENAME_BBOX_GZ)
             with gzip.open(bbox_filename, "rb") as f:
                 bbox = pickle.load(f)
-            self.save_image(location, bbox)
+
+            for i in range(12):
+                month = i + 1
+                start_date = f"{self._year}-{month}-1"
+                if month != 12:
+                    end_date = f"{self._year}-{month+1}-1"
+                else:
+                    end_date = f"{self._year + 1}-1-1"
+                self.save_image(location, bbox, start_date, end_date)
 
 
 if __name__ == "__main__":
-    start_date = "2019-03-01"
-    end_date = "2020-11-30"
-    downloader = Downloader(start_date, end_date)
+    year = 2019
+    downloader = Downloader(year)
     downloader.download_patches()

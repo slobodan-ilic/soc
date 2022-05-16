@@ -42,7 +42,7 @@ class Loader:
     @lazyproperty
     def _master_size(self):
         """int representing dim of input."""
-        return self._images[0].shape[0]
+        return self._images[0][0].shape[0]
 
     @lazyproperty
     def _patches(self) -> list:
@@ -51,12 +51,16 @@ class Loader:
 
     @lazyproperty
     def _images(self) -> np.ndarray:
-        images = []
+        patches = []
         for patch in self._patches:
-            filename = f"{self._path}{patch}/img.npy"
-            img = preprocess_ms_image(np.load(filename).astype("float64"))
-            images.append(img)
-        return np.array(images)
+            images = []
+            for i in range(12):
+                month = i + 1
+                filename = f"{self._path}{patch}/{month}-img.npy"
+                img = preprocess_ms_image(np.load(filename).astype("float64"))
+                images.append(img)
+            patches.append(images)
+        return np.array(patches)
 
     @lazyproperty
     def _masks(self) -> np.ndarray:
@@ -97,6 +101,7 @@ class Loader:
         all_patch_inds = list(
             itertools.product(
                 range(len(self._patches)),
+                range(12),
                 range(0, n_pixels_per_dim, self._skip),
                 range(0, n_pixels_per_dim, self._skip),
                 self._n_rotate,
@@ -115,8 +120,8 @@ class Loader:
 
     def _preprocess_patch_index(self, ind):
         n = self._patch_size
-        pch, i, j, n_rotate, flip_code = ind
-        img = self._images[pch][i : i + n, j : j + n, :]
+        pch, month_ind, i, j, n_rotate, flip_code = ind
+        img = self._images[pch][month_ind][i : i + n, j : j + n, :]
         msk = self._masks[pch][i : i + n, j : j + n, :]
         if flip_code:
             axes = {1: 0, 2: 1, 3: (0, 1)}[flip_code]  # flip code -> axes
