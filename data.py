@@ -42,35 +42,43 @@ class Loader:
     @lazyproperty
     def _master_size(self):
         """int representing dim of input."""
-        return self._images[0][0].shape[0]
+        filename = f"{self._path}{self._patches[0]}/{1}-img.npy"
+        img = preprocess_ms_image(np.load(filename).astype("float64"))
+        return img.shape[0]
 
     @lazyproperty
     def _patches(self) -> list:
         """list of all the sentinel patches."""
         return [psh for psh in os.listdir(self._path) if not psh.startswith(".")]
 
-    @lazyproperty
-    def _images(self) -> np.ndarray:
-        patches = []
-        for patch in self._patches:
-            images = []
-            for i in range(12):
-                month = i + 1
-                filename = f"{self._path}{patch}/{month}-img.npy"
-                img = preprocess_ms_image(np.load(filename).astype("float64"))
-                images.append(img)
-            patches.append(images)
-        return np.array(patches)
+    def _images(self, pch_ind, mth_ind, i, j) -> np.ndarray:
+        # patches = []
+        # for patch in self._patches:
+        #     images = []
+        #     for i in range(12):
+        n = self._patch_size
+        month = mth_ind + 1
+        patch = self._patches[pch_ind]
+        filename = f"{self._path}{patch}/{month}-img.npy"
+        img = preprocess_ms_image(np.load(filename).astype("float64"))
+        return img[i : i + n, j : j + n, :]
+        # images.append(img)
+        # patches.append(images)
+        # return np.array(patches)
 
-    @lazyproperty
-    def _masks(self) -> np.ndarray:
-        masks = []
-        for patch in self._patches:
-            filename = f"{self._path}{patch}/LULC.npy"
-            logits = np.load(filename)
-            one_hot = to_categorical(logits, num_classes=10)
-            masks.append(one_hot)
-        return np.array(masks)
+    def _masks(self, pch_ind, i, j) -> np.ndarray:
+        # masks = []
+        # for patch in self._patches:
+        patch = self._patches[pch_ind]
+        filename = f"{self._path}{patch}/LULC.npy"
+        logits = np.load(filename)
+        n = self._patch_size
+        logits = logits[i : i + n, j : j + n, :]
+        # images.append(img)
+        one_hot = to_categorical(logits, num_classes=10)
+        return one_hot
+        # masks.append(one_hot)
+        # return np.array(masks)
 
     @lazyproperty
     def _n_rotate(self) -> list:
@@ -119,10 +127,10 @@ class Loader:
     # ------------------------- IMPLEMENTATION ---------------------------------------
 
     def _preprocess_patch_index(self, ind):
-        n = self._patch_size
+        # n = self._patch_size
         pch, month_ind, i, j, n_rotate, flip_code = ind
-        img = self._images[pch][month_ind][i : i + n, j : j + n, :]
-        msk = self._masks[pch][i : i + n, j : j + n, :]
+        img = self._images(pch, month_ind, i, j)  # ][i : i + n, j : j + n, :]
+        msk = self._masks(pch, i, j)  # [pch][i : i + n, j : j + n, :]
         if flip_code:
             axes = {1: 0, 2: 1, 3: (0, 1)}[flip_code]  # flip code -> axes
             img = np.flip(img, axes)
