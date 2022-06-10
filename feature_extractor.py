@@ -44,8 +44,9 @@ class FeatureExtractor:
             ]
 
     def _images(self):
-        for lon, lat in self._coords:
-            path = f"{DIR}/{lon}-{lat}-ms-img.py"
+        for i, (lon, lat) in enumerate(self._coords):
+            print(f"image: {i}")
+            path = f"{DIR}/{lon}-{lat}-ms-img"
             if not os.path.exists(path):
                 sd = SentinelDownloader(
                     float(lon), float(lat), "2020-06-12", "2020-07-01"
@@ -57,14 +58,15 @@ class FeatureExtractor:
             yield lon, lat, img
 
     def _features(self):
-        for lon, lat, img in self._images():
+        for i, (lon, lat, img) in enumerate(self._images()):
+            print(f"featue: {i}")
             input_ = np.array([preprocess_ms_image(img.astype("float32"))])
             features = self._feat_ext.predict(input_)
             yield lon, lat, features[0, 31, 31]
 
 
 if __name__ == "__main__":
-    filename = "/Users/slobodanilic/Downloads/barilaTexture_v2/fvgTexture.csv"
+    filename = "./data/coords_test.csv"
     fe = FeatureExtractor(filename)
     features_fn = filename.split(".")[0] + "Feats.csv"
     with open(features_fn, "w", newline="") as csvfile:
