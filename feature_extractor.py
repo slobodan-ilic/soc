@@ -68,7 +68,7 @@ class FeatureExtractor:
 if __name__ == "__main__":
     filename = "./data/coords_test.csv"
     fe = FeatureExtractor(filename)
-    features_fn = filename.split(".")[0] + "Feats.csv"
+    features_fn = ".".join(filename.split(".")[:-1]) + "Feats.csv"
     with open(features_fn, "w", newline="") as csvfile:
         featwriter = csv.writer(csvfile)
         featwriter.writerow(["lon", "lat"] + [f"feat_{i}" for i in range(10)])
