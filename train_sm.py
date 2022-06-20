@@ -7,7 +7,8 @@ import sys
 import segmentation_models as sm
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 from tensorflow.keras.losses import categorical_crossentropy
-from tensorflow.keras.optimizers import SGD
+
+# from tensorflow.keras.optimizers import SGD
 
 from data import Loader
 
@@ -31,7 +32,10 @@ sm.set_framework("tf.keras")
 
 
 def custom_loss(y_true, y_pred):
-    return categorical_crossentropy(y_true[:, :, :, 1:], y_pred[:, :, :, 1:])
+    pad = 8
+    return categorical_crossentropy(
+        y_true[:, pad:-pad, pad:-pad, 1:], y_pred[:, pad:-pad, pad:-pad, 1:]
+    )
 
 
 def create_and_train_unet_model(path, input_shape, skip, n_classes, batch_size, epochs):
